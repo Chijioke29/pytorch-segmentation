@@ -101,13 +101,14 @@ ENV/
 .mypy_cache/
 
 # input data, saved log, checkpoints and pretrained models
-data/
+pretrained/
+# data/
 input/
 saved/
 outputs/
 datasets/
-pretrained/
 trained_models/
+cityscapes/
 
 # editor, os cache directory
 .vscode/

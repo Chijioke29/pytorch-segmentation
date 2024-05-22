@@ -9,17 +9,13 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-ignore_label = 255
-ID_TO_TRAINID = {-1: ignore_label, 0: ignore_label, 1: ignore_label, 2: ignore_label,
-                    3: ignore_label, 4: ignore_label, 5: ignore_label, 6: ignore_label,
-                    7: 0, 8: 1, 9: ignore_label, 10: ignore_label, 11: 2, 12: 3, 13: 4,
-                    14: ignore_label, 15: ignore_label, 16: ignore_label, 17: 5,
-                    18: ignore_label, 19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13, 27: 14,
-                    28: 15, 29: ignore_label, 30: ignore_label, 31: 16, 32: 17, 33: 18}
+# ignore_label = 255
+ID_TO_TRAINID = {0: 0,
+                 1: 1}
 
 class CityScapesDataset(BaseDataSet):
     def __init__(self, mode='fine', **kwargs):
-        self.num_classes = 19
+        self.num_classes = 2
         self.mode = mode
         self.palette = palette.CityScpates_palette
         self.id_to_trainId = ID_TO_TRAINID
@@ -29,7 +25,7 @@ class CityScapesDataset(BaseDataSet):
         assert (self.mode == 'fine' and self.split in ['train', 'val']) or \
         (self.mode == 'coarse' and self.split in ['train', 'train_extra', 'val'])
 
-        SUFIX = '_gtFine_labelIds.png'
+        SUFIX = '_gtFine_color.png'
         if self.mode == 'coarse':
             img_dir_name = 'leftImg8bit_trainextra' if self.split == 'train_extra' else 'leftImg8bit_trainvaltest'
             label_path = os.path.join(self.root, 'gtCoarse', 'gtCoarse', self.split)
@@ -41,7 +37,7 @@ class CityScapesDataset(BaseDataSet):
 
         image_paths, label_paths = [], []
         for city in os.listdir(image_path):
-            image_paths.extend(sorted(glob(os.path.join(image_path, city, '*.png'))))
+            image_paths.extend(sorted(glob(os.path.join(image_path, city, '*.jpg'))))
             label_paths.extend(sorted(glob(os.path.join(label_path, city, f'*{SUFIX}'))))
         self.files = list(zip(image_paths, label_paths))
 
@@ -50,8 +46,14 @@ class CityScapesDataset(BaseDataSet):
         image_id = os.path.splitext(os.path.basename(image_path))[0]
         image = np.asarray(Image.open(image_path).convert('RGB'), dtype=np.float32)
         label = np.asarray(Image.open(label_path), dtype=np.int32)
+        label = label.astype(np.uint8)
+        label = cv2.cvtColor(label, cv2.COLOR_BGR2GRAY)
+        _, binary_img = cv2.threshold(label, 1, 1, cv2.THRESH_BINARY_INV)
+        label = 1 - binary_img
+        #label = label.astype(np.int32)
         for k, v in self.id_to_trainId.items():
             label[label == k] = v
+        label = label.astype(np.int32)
         return image, label, image_id
 
 

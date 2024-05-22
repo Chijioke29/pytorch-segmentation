@@ -8,6 +8,8 @@ from base import BaseTrainer, DataPrefetcher
 from utils.helpers import colorize_mask
 from utils.metrics import eval_metrics, AverageMeter
 from tqdm import tqdm
+import pandas as pd
+import matplotlib.pyplot as plt
 
 class Trainer(BaseTrainer):
     def __init__(self, model, loss, resume, config, train_loader, val_loader=None, train_logger=None, prefetch=True):
@@ -33,6 +35,18 @@ class Trainer(BaseTrainer):
             self.val_loader = DataPrefetcher(val_loader, device=self.device)
 
         torch.backends.cudnn.benchmark = True
+
+        # Initialize CSV files and metrics containers
+        self.csv_file = config['trainer'].get('csv_file', 'training_metrics.csv')
+        self.metrics = {
+            'epoch': [],
+            'train_loss': [],
+            'train_pixel_acc': [],
+            'train_miou': [],
+            'val_loss': [],
+            'val_pixel_acc': [],
+            'val_miou': []
+        }
 
     def _train_epoch(self, epoch):
         self.logger.info('\n')
@@ -104,6 +118,13 @@ class Trainer(BaseTrainer):
                 **seg_metrics}
 
         #if self.lr_scheduler is not None: self.lr_scheduler.step()
+
+        # Update metrics dictionary for CSV
+        self.metrics['epoch'].append(epoch)
+        self.metrics['train_loss'].append(self.total_loss.average)
+        self.metrics['train_pixel_acc'].append(seg_metrics['Pixel_Accuracy'])
+        self.metrics['train_miou'].append(seg_metrics['Mean_IoU'])
+
         return log
 
     def _valid_epoch(self, epoch):
@@ -167,8 +188,33 @@ class Trainer(BaseTrainer):
                 'val_loss': self.total_loss.average,
                 **seg_metrics
             }
+        
+        # Update metrics dictionary for CSV
+        self.metrics['val_loss'].append(self.total_loss.average)
+        self.metrics['val_pixel_acc'].append(seg_metrics['Pixel_Accuracy'])
+        self.metrics['val_miou'].append(seg_metrics['Mean_IoU'])
+
+        # Save metrics to CSV
+        df = pd.DataFrame(self.metrics)
+        df.to_csv(self.csv_file, index=False)
+
+        # Plot and save figures
+        self._plot_metrics()
 
         return log
+    
+    def _plot_metrics(self):
+        metrics_to_plot = ['loss', 'pixel_acc', 'miou']
+        for metric in metrics_to_plot:
+            plt.figure()
+            plt.plot(self.metrics['epoch'], self.metrics[f'train_{metric}'], label='Train')
+            plt.plot(self.metrics['epoch'], self.metrics[f'val_{metric}'], label='Validation')
+            plt.xlabel('Epoch')
+            plt.ylabel(metric.replace('_', ' ').title())
+            plt.title(f'{metric.replace("_", " ").title()} over Epochs')
+            plt.legend()
+            plt.savefig(f'{metric}.png')
+            plt.close()
 
     def _reset_metrics(self):
         self.batch_time = AverageMeter()

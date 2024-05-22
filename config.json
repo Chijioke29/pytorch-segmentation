@@ -1,14 +1,15 @@
 {
-    "name": "PSPNet",
+    "name": "DeepLab",
     "n_gpu": 1,
     "use_synch_bn": false,
 
     "arch": {
-        "type": "PSPNet",
+        "type": "DeepLab",
         "args": {
-            "backbone": "resnet50",
-            "freeze_bn": false,
-            "freeze_backbone": false
+            "backbone": "resnet101",
+            "freeze_bn": true,
+            "freeze_backbone": true,
+            "pretrained": true
         }
     },
 
@@ -63,6 +64,7 @@
         "epochs": 80,
         "save_dir": "saved/",
         "save_period": 10,
+        "csv_file": "./Train_results/training_metrics.csv",
   
         "monitor": "max Mean_IoU",
         "early_stop": 10,
